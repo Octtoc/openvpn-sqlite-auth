@@ -4,6 +4,8 @@
 import hashlib
 import os
 import sqlite3
+import base64
+import binascii
 import sys
 from getpass import getpass
 
@@ -36,10 +38,13 @@ while not password_ok:
 
 password = hash_func(password.encode("UTF-8")).hexdigest()
 
+otphexkey = getpass('OTP Hex Key: ')
+otpbase32key = base64.b32encode(binascii.unhexlify(otphexkey)).decode('utf-8')
+
 db = sqlite3.connect(DB_PATH)
 cursor = db.cursor()
 try:
-    cursor.execute("INSERT INTO users VALUES (?, ?);", (username, password))
+    cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?);", (username, password, otpbase32key, 0))
 except sqlite3.IntegrityError:
     print("ERROR: user '%s' already exists" % username)
     sys.exit(2)
