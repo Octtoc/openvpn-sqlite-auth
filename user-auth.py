@@ -7,7 +7,7 @@ import sqlite3
 import pyotp
 import sys
 
-from config import DB_PATH, HASH_ALGORITHM
+from config import DB_PATH, HASH_ALGORITHM, HOTPBACK
 
 
 hash_func = getattr(hashlib, HASH_ALGORITHM)
@@ -22,13 +22,22 @@ result = cursor.fetchone()
 if result is None:
     sys.exit(1)
 username, password, otpbase32key, otpcounter = result
-if hash_func(os.environ['password'].encode("utf-8")).hexdigest() != password:
+if hash_func(passwordInput.encode("utf-8")).hexdigest() != password:
     sys.exit(1)
 
 hotp = pyotp.HOTP(otpbase32key)
-if not hotp.verify(otp, otpcounter):
+
+hotp_ok = False
+for i in range(HOTPBACK):
+    if hotp.verify(otp, otpcounter):
+        hotp_ok = True
+        break
+    otpcounter = otpcounter + 1
+
+if not hotp_ok:
     sys.exit(1)
 
-conn.execute('UPDATE users SET otpcounter = ? WHERE username = ?;', (otpcounter+1, os.environ['username']))
+cursor.execute('UPDATE users SET otpcounter = ? WHERE username = ?;', (otpcounter+1, os.environ['username']))
+conn.commit()
 
 sys.exit(0)
